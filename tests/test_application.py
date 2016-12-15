@@ -157,12 +157,13 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
         rv = tornado.concurrent.Future()
         rv.set_result((200, b'OK'))
         checker = mock.Mock(return_value=rv)
-        server_state = 'UP 2/3; addr=srv1; port=1234; name=bck/srv2; node=lb1; weight=1/2; scur=13/22; qcur=0'
+        server_state = 'UP 2/3; addr=srv1; host=1.2.3.4; port=1234; name=bck/srv2; node=lb1; weight=1/2; scur=13/22; qcur=0'
         with mock.patch.object(handlers.HTTPServiceHandler, 'CHECKERS', [checker]):
             response = self.fetch('/http/foo/1/status', headers={'X-Haproxy-Server-State': server_state})
             self.assertEqual(200, response.code)
             args, _ = checker.call_args
-            assert args[1] == 1234
+            assert args[1] = '1.2.3.4'
+            assert args[2] == 1234
 
     def test_old_haproxy_server_state_ignored(self):
         rv = tornado.concurrent.Future()

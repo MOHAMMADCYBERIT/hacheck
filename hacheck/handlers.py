@@ -69,10 +69,10 @@ class ServiceCountHandler(tornado.web.RequestHandler):
 class BaseServiceHandler(tornado.web.RequestHandler):
     CHECKERS = []
 
-    def maybe_get_port_from_haproxy_server_state(self):
+    def get_haproxy_server_state(self, field):
         """
         Look for the 'X-Haproxy-Server-State' header and try to parse out the
-        'port' value.
+        desired value.
 
         Note that only very recent versions of HAProxy support sending
         the port in the send-state header. In particular you need
@@ -83,7 +83,7 @@ class BaseServiceHandler(tornado.web.RequestHandler):
             X-Haproxy-Server-State: UP 2/3; address=srv2; port=1234;
               name=bck/srv2; node=lb1; weight=1/2; scur=13/22; qcur=0
 
-        returns: the string-typed port if found, else None.
+        returns: the string-typed field value if found, else None.
         """
 
         server_state = self.request.headers.get('X-Haproxy-Server-State', '')
@@ -93,11 +93,18 @@ class BaseServiceHandler(tornado.web.RequestHandler):
         parts = [part.split('=') for part in parts]
         parts = [part for part in parts if len(part) == 2]
 
-        return dict(parts).get('port')
+        return dict(parts).get(field)
+
+    def maybe_get_port_from_haproxy_server_state(self):
+        return get_haproxy_server_state('port')
+
+    def maybe_get_host_from_haproxy_server_state(self):
+        return get_haproxy_server_state('host')
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, service_name, port, query):
+        host = self.maybe_get_host_from_haproxy_server_state() or '127.0.0.1'
         port = self.maybe_get_port_from_haproxy_server_state() or port
 
         seen_services[service_name] = time.time()
@@ -109,6 +116,7 @@ class BaseServiceHandler(tornado.web.RequestHandler):
             for this_checker in self.CHECKERS:
                 code, message = yield this_checker(
                     service_name,
+                    host,
                     port,
                     query,
                     io_loop=tornado.ioloop.IOLoop.current(),
