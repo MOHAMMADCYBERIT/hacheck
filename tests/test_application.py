@@ -162,7 +162,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             response = self.fetch('/http/foo/1/status', headers={'X-Haproxy-Server-State': server_state})
             self.assertEqual(200, response.code)
             args, _ = checker.call_args
-            assert args[1] = '1.2.3.4'
+            assert args[1] == '1.2.3.4'
             assert args[2] == 1234
 
     def test_old_haproxy_server_state_ignored(self):
