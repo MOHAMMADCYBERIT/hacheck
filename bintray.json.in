@@ -26,7 +26,7 @@
 
     "files":
         [
-        {"includePattern": "dist/(hacheck.*\.deb)", "uploadPattern": "$1", "matrixParams": { "deb_distribution": "trusty", "deb_component": "main", "deb_architecture": "amd64"} }
+        {"includePattern": "dist/(hacheck.*\.deb)", "uploadPattern": "$1", "matrixParams": { "deb_distribution": "@CODENAME@", "deb_component": "main", "deb_architecture": "amd64"} }
         ],
     "publish": true
 }
