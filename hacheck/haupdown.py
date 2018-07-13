@@ -107,7 +107,7 @@ def main(default_action='list'):
                 unix_username = line.split('#')[0].strip()
                 if unix_username:
                     nonhumans.add(unix_username)
-    except:
+    except Exception:
         pass
     if opts.action == 'down' and not opts.reason:
         if 'SUDO_USER' in os.environ:
