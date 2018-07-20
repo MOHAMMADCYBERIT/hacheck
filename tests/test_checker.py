@@ -120,15 +120,26 @@ class BaseTestHTTPHTTPSChecker(object):
             self.assertEqual(b'service_name', response)
 
     @tornado.testing.gen_test
-    def test_cache_hit_different_registration(self):
+    def test_cache_ignores_service_name(self):
+        cache.configure()
+        code_1, response_1 = yield self.check_http_https('service_name.main', self.get_http_port(), "/sname",
+                                                         io_loop=self.io_loop, query_params="", headers={})
+        code_2, response_2 = yield self.check_http_https('service_name.main_ro', self.get_http_port(), "/sname",
+                                                         io_loop=self.io_loop, query_params="", headers={})
+        self.assertEqual(cache.stats['gets'], 2)
+        self.assertEqual(cache.stats['hits'], 1)
+
+    @tornado.testing.gen_test
+    def test_service_name_header_disables_cache(self):
         with mock.patch.dict(config.config, {'service_name_header': 'SName'}):
-            cache.stats.clear()
+            cache.configure()
             code_1, response_1 = yield self.check_http_https('service_name.main', self.get_http_port(), "/sname",
                                                              io_loop=self.io_loop, query_params="", headers={})
             code_2, response_2 = yield self.check_http_https('service_name.main_ro', self.get_http_port(), "/sname",
                                                              io_loop=self.io_loop, query_params="", headers={})
             self.assertEqual(cache.stats['gets'], 2)
-            self.assertEqual(cache.stats['hits'], 1)
+            self.assertEqual(cache.stats['hits'], 0)
+        cache.configure()
 
     @tornado.testing.gen_test
     def test_query_params_passed(self):

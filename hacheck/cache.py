@@ -8,6 +8,8 @@ except Exception:
     from .compat import Counter
 from collections import namedtuple
 
+from . import config as configuration
+
 _cache = {}
 
 config = {
@@ -32,6 +34,9 @@ Record = namedtuple('Record', ['expiry', 'value'])
 def configure(cache_time=config['cache_time']):
     """Configure the cache and reset its values"""
     config['cache_time'] = cache_time
+    # We no longer use service name as part of the cache key.
+    # If we want the service name to be part of the response header, we can't use the cache.
+    config['ignore_cache'] = configuration.config.get('service_name_header') is not None
     stats.clear()
     stats.update(default_stats)
     _cache.clear()
