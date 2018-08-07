@@ -34,9 +34,6 @@ Record = namedtuple('Record', ['expiry', 'value'])
 def configure(cache_time=config['cache_time']):
     """Configure the cache and reset its values"""
     config['cache_time'] = cache_time
-    # We no longer use service name as part of the cache key.
-    # If we want the service name to be part of the response header, we can't use the cache.
-    config['ignore_cache'] = configuration.config.get('service_name_header') is not None
     stats.clear()
     stats.update(default_stats)
     _cache.clear()
@@ -99,7 +96,9 @@ def cached(func):
         # To avoid duplicate healthchecks for one instance advertised on multiple namespaces,
         # drop the first positional arg, which is service name, from the cache key.
         # That leaves port, which still uniquely identifies an instance, and path.
-        key = tuple([func.__name__, args[1:]])
+        # But only drop service name from cache key if we don't pass it in the request header,
+        # since there may be dynamic checking behavior.
+        key = tuple([func.__name__, args if configuration.config.get('service_name_header') else args[1:]])
         try:
             response = getv(key, now)
         except KeyError:
