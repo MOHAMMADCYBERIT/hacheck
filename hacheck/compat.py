@@ -37,7 +37,7 @@ def nested3(*managers):
             vars.append(enter())
             exits.append(exit)
         yield vars
-    except:
+    except Exception:
         exc = sys.exc_info()
     finally:
         while exits:
@@ -45,7 +45,7 @@ def nested3(*managers):
             try:
                 if exit(*exc):
                     exc = (None, None, None)
-            except:
+            except Exception:
                 exc = sys.exc_info()
         if exc != (None, None, None):
             # Don't rely on sys.exc_info() still containing

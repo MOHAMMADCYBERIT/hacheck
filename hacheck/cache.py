@@ -4,9 +4,11 @@ import functools
 import time
 try:
     from collections import Counter
-except:
+except Exception:
     from .compat import Counter
 from collections import namedtuple
+
+from . import config as configuration
 
 _cache = {}
 
@@ -91,7 +93,12 @@ def cached(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         now = time.time()
-        key = tuple([func.__name__, args])
+        # To avoid duplicate healthchecks for one instance advertised on multiple namespaces,
+        # drop the first positional arg, which is service name, from the cache key.
+        # That leaves port, which still uniquely identifies an instance, and path.
+        # But only drop service name from cache key if we don't pass it in the request header,
+        # since there may be dynamic checking behavior.
+        key = tuple([func.__name__, args if configuration.config.get('service_name_header') else args[1:]])
         try:
             response = getv(key, now)
         except KeyError:

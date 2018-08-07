@@ -24,6 +24,8 @@ except ImportError:
 
 class DummyTimeout(object):
     callback = None
+
+
 DUMMY = DummyTimeout()
 
 
