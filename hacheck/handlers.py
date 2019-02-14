@@ -69,7 +69,7 @@ class ServiceCountHandler(tornado.web.RequestHandler):
 class BaseServiceHandler(tornado.web.RequestHandler):
     CHECKERS = []
 
-    def maybe_get_port_from_haproxy_server_state(self):
+    def maybe_get_host_port_from_haproxy_server_state(self):
         """
         Look for the 'X-Haproxy-Server-State' header and try to parse out the
         'port' value.
@@ -93,12 +93,27 @@ class BaseServiceHandler(tornado.web.RequestHandler):
         parts = [part.split('=') for part in parts]
         parts = [part for part in parts if len(part) == 2]
 
-        return dict(parts).get('port')
+        state = dict(parts)
+        print(state)
+        return state.get('port'), state.get('address')
+
+    def maybe_get_host_from_nerve_header(self):
+        """
+        Look for header X-Nerve-Check-IP and use this as the
+        host to check rather than localhost. Useful for k8s pods
+        which have their own IP and are not reachable on 127.0.0.1
+        """
+
+        return self.request.headers.get('X-Nerve-Check-IP', None)
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, service_name, port, query):
-        port = self.maybe_get_port_from_haproxy_server_state() or port
+        header_port, header_host = self.maybe_get_host_port_from_haproxy_server_state()
+        if not header_host:
+            header_host = self.maybe_get_host_from_nerve_header()
+        host = header_host if header_host else '127.0.0.1'
+        port = header_port if header_port else port
 
         seen_services[service_name] = time.time()
         service_count[service_name][self.request.remote_ip] += 1
@@ -111,6 +126,7 @@ class BaseServiceHandler(tornado.web.RequestHandler):
                     service_name,
                     port,
                     query,
+                    host,
                     io_loop=tornado.ioloop.IOLoop.current(),
                     query_params=querystr,
                     headers=self.request.headers,

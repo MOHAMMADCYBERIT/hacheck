@@ -19,7 +19,7 @@ TIMEOUT = 10
 
 # Do not cache spool checks
 @tornado.concurrent.return_future
-def check_spool(service_name, port, query, io_loop, callback, query_params, headers):
+def check_spool(service_name, port, query, host, io_loop, callback, query_params, headers):
     up, extra_info = spool.is_up(service_name, port=port)
     if not up:
         info_string = 'Service %s in down state' % (extra_info['service'],)
@@ -37,18 +37,18 @@ def check_spool(service_name, port, query, io_loop, callback, query_params, head
 # IMPORTANT: the gen.coroutine decorator needs to be the innermost
 @cache.cached
 @tornado.gen.coroutine
-def check_http(service_name, port, check_path, io_loop, query_params, headers):
-    return check_http_https(service_name, port, check_path, io_loop, query_params, headers, False)
+def check_http(service_name, port, query, host, io_loop, query_params, headers):
+    return check_http_https(service_name, port, query, host, io_loop, query_params, headers, False)
 
 
 # IMPORTANT: the gen.coroutine decorator needs to be the innermost
 @cache.cached
 @tornado.gen.coroutine
-def check_https(service_name, port, check_path, io_loop, query_params, headers):
-    return check_http_https(service_name, port, check_path, io_loop, query_params, headers, True)
+def check_https(service_name, port, query, host, io_loop, query_params, headers):
+    return check_http_https(service_name, port, query, host, io_loop, query_params, headers, True)
 
 
-def check_http_https(service_name, port, check_path, io_loop, query_params, headers, ssl):
+def check_http_https(service_name, port, check_path, host, io_loop, query_params, headers, ssl):
     if ssl:
         method = "https"
     else:
@@ -62,7 +62,7 @@ def check_http_https(service_name, port, check_path, io_loop, query_params, head
             headers_out[header] = headers[header]
     if config.config['service_name_header']:
         headers_out[config.config['service_name_header']] = service_name
-    path = '%s://127.0.0.1:%d%s%s' % (method, port, check_path, '?' + qp if qp else '')
+    path = '%s://%s:%d%s%s' % (method, host, port, check_path, '?' + qp if qp else '')
     request = tornado.httpclient.HTTPRequest(
         path,
         method='GET',
@@ -90,7 +90,7 @@ def check_http_https(service_name, port, check_path, io_loop, query_params, head
 
 @cache.cached
 @tornado.gen.coroutine
-def check_tcp(service_name, port, query, io_loop, query_params, headers):
+def check_tcp(service_name, port, query, host, io_loop, query_params, headers):
     stream = None
     connect_start = time.time()
 
@@ -99,7 +99,7 @@ def check_tcp(service_name, port, query, io_loop, query_params, headers):
         stream = tornado.iostream.IOStream(s, io_loop=io_loop)
         yield tornado.gen.with_timeout(
             datetime.timedelta(seconds=TIMEOUT),
-            tornado.gen.Task(stream.connect, ('127.0.0.1', port))
+            tornado.gen.Task(stream.connect, (host, port))
         )
 
     except tornado.gen.TimeoutError:
@@ -125,7 +125,7 @@ def check_tcp(service_name, port, query, io_loop, query_params, headers):
 
 @cache.cached
 @tornado.gen.coroutine
-def check_mysql(service_name, port, query, io_loop, query_params, headers):
+def check_mysql(service_name, port, query, host, io_loop, query_params, headers):
     username = config.config.get('mysql_username', None)
     password = config.config.get('mysql_password', None)
     if username is None or password is None:
@@ -134,7 +134,7 @@ def check_mysql(service_name, port, query, io_loop, query_params, headers):
     def timed_out(duration):
         raise tornado.gen.Return((503, 'MySQL timed out after %.2fs' % (duration)))
 
-    conn = mysql.MySQLClient(port=port, global_timeout=TIMEOUT, io_loop=io_loop)
+    conn = mysql.MySQLClient(host=host, port=port, global_timeout=TIMEOUT, io_loop=io_loop)
     response = yield conn.connect(username, password)
     if not response.OK:
         raise tornado.gen.Return((500, 'MySQL sez %s' % response))
@@ -144,7 +144,7 @@ def check_mysql(service_name, port, query, io_loop, query_params, headers):
 
 @cache.cached
 @tornado.gen.coroutine
-def check_smtp(service_name, port, query, io_loop, query_params, headers):
+def check_smtp(service_name, port, query, host, io_loop, query_params, headers):
     stream = None
     connect_start = time.time()
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
@@ -153,7 +153,7 @@ def check_smtp(service_name, port, query, io_loop, query_params, headers):
         yield tornado.gen.with_timeout(
             datetime.timedelta(seconds=TIMEOUT),
             tornado.gen.Task(
-                stream.connect, ('127.0.0.1', port))
+                stream.connect, (host, port))
         )
         yield stream.read_until(b'\r\n')
         yield stream.write(b'QUIT\r\n')
