@@ -4,3 +4,4 @@ usr/share/python/hacheck/bin/halist usr/bin/halist
 usr/share/python/hacheck/bin/hashowdowned usr/bin/hashowdowned
 usr/share/python/hacheck/bin/hastatus usr/bin/hastatus
 usr/share/python/hacheck/bin/haup usr/bin/haup
+usr/share/python/hacheck/lib/python2.7/site-packages/hacheck/static/haupdown usr/bin/haupdown_static

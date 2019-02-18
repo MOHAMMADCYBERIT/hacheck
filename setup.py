@@ -12,6 +12,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     keywords=["monitoring", "load-balancing", "networking"],
     description="HAProxy health-check proxying service",
+    package_data={'hacheck': ['static/*']},
     install_requires=[
         'tornado>=4.1,<=4.3',
         'PyYAML>=3.0',

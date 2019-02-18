@@ -1,7 +1,11 @@
 FROM ubuntu:xenial
 
+RUN apt-get update > /dev/null && \
+    apt-get install -y --no-install-recommends software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa
+
 RUN apt-get update && apt-get -y install dpkg-dev python-tox python-setuptools \
-  python-dev debhelper python-yaml libyaml-dev git wget
+  python-dev debhelper python-yaml libyaml-dev git wget patchelf python3.6-dev
 
 RUN cd `mktemp -d` && wget http://mirrors.kernel.org/ubuntu/pool/universe/d/dh-virtualenv/dh-virtualenv_0.11-1_all.deb && dpkg -i dh-virtualenv_0.11-1_all.deb && apt-get -f install
 
