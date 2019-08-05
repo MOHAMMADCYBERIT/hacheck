@@ -88,7 +88,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
         ):
             response = self.fetch('/spool/foo/1/status')
             self.assertEqual(response.code, 503)
-            self.assertRegexpMatches(response.body, b'^Service any in down state since 4\.0+ until 5\.0+: reason$')  # noqa
+            self.assertRegexpMatches(response.body, b'^Service any in down state since 4\\.0+ until 5\\.0+: reason$')
 
     def test_calls_all_checkers(self):
         rv1 = tornado.concurrent.Future()

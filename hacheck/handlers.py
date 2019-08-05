@@ -94,7 +94,6 @@ class BaseServiceHandler(tornado.web.RequestHandler):
         parts = [part for part in parts if len(part) == 2]
 
         state = dict(parts)
-        print(state)
         return state.get('port'), state.get('address')
 
     def maybe_get_host_from_nerve_header(self):
