@@ -60,13 +60,13 @@ class TestChecker(TestCase):
             self.assertTrue(fut.done())
             res = fut.result()
             self.assertEqual(res[0], 200)
-            is_up_patch.assert_called_once_with(se.name, port=se.port)
+            is_up_patch.assert_called_once_with(se.name, port=se.port, host='127.0.0.1')
 
     def test_spool_failure(self):
         with mock.patch.object(spool, 'is_up', return_value=(False, {'service': se.service})) as is_up_patch:
             fut = checker.check_spool(se.name, se.port, se.query, '127.0.0.1', None, query_params=None, headers={})
             self.assertEqual(fut.result()[0], 503)
-            is_up_patch.assert_called_once_with(se.name, port=se.port)
+            is_up_patch.assert_called_once_with(se.name, port=se.port, host='127.0.0.1')
 
 
 class BaseTestHTTPHTTPSChecker(object):

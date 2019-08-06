@@ -7,12 +7,14 @@ config = {
 }
 
 
-def spool_file_path(service_name, port):
+def spool_file_path(service_name, port, host=None):
     if port is None:
         base_name = service_name
     else:
-        base_name = "%s:%s" % (service_name, port)
-
+        if host is not None and host != '127.0.0.1':
+            base_name = "%s:%s:%s" % (service_name, host, port)
+        else:
+            base_name = "%s:%s" % (service_name, port)
     return os.path.join(config['spool_root'], base_name)
 
 
@@ -20,13 +22,20 @@ def parse_spool_file_path(path):
     base_name = os.path.basename(path)
 
     if ':' in base_name:
-        service_name, port = base_name.rsplit(':', 1)
-        port = int(port)
+        parts = base_name.rsplit(':', 2)
+        service_name = parts[0]
+        if len(parts) < 3:
+            host = None
+            port = int(parts[1])
+        else:
+            host = parts[1]
+            port = int(parts[2])
     else:
         service_name = base_name
+        host = None
         port = None
 
-    return service_name, port
+    return service_name, host, port
 
 
 def serialize_spool_file_contents(reason, expiration=None, creation=None):
@@ -74,7 +83,7 @@ def configure(spool_root, needs_write=False):
     config['spool_root'] = spool_root
 
 
-def is_up(service_name, port=None):
+def is_up(service_name, port=None, host=None):
     """Check whether a service is asserted to be up or down. Includes the logic
     for checking system-wide all state
 
@@ -85,21 +94,21 @@ def is_up(service_name, port=None):
         # Check with port=None first, because if service foo is down, then service foo on port 123 should be down too.
         service_up, service_info = status(service_name, port=None)
         if service_up:
-            return status(service_name, port=port)
+            return status(service_name, port=port, host=host)
         else:
             return service_up, service_info
     else:
         return all_up, all_info
 
 
-def status(service_name, port=None):
+def status(service_name, port=None, host=None):
     """Check whether a service is asserted to be up or down, without checking
     the system-wide 'all' state.
 
     :returns: (bool of service status, dict of info as returned by deserialize_spool_file_contents)
     """
     happy_retval = (True, {'service': service_name, 'reason': '', 'expiration': None})
-    path = spool_file_path(service_name, port)
+    path = spool_file_path(service_name, port, host)
     try:
         with open(path, 'r') as f:
             info_dict = deserialize_spool_file_contents(f.read())
@@ -119,21 +128,21 @@ def status_all_down():
     :returns: Iterable of pairs of (service name, port, dict of info as returned by deserialize_spool_file_contents)
     """
     for filename in os.listdir(config['spool_root']):
-        service_name, port = parse_spool_file_path(filename)
-        up, info = status(service_name, port=port)
+        service_name, host, port = parse_spool_file_path(filename)
+        up, info = status(service_name, port=port, host=host)
         if not up:
-            yield service_name, port, info
+            yield service_name, host, port, info
 
 
-def up(service_name, port=None):
+def up(service_name, port=None, host=None):
     try:
-        os.unlink(spool_file_path(service_name, port))
+        os.unlink(spool_file_path(service_name, port, host))
     except OSError:
         pass
 
 
-def down(service_name, reason="", port=None, expiration=None, creation=None):
-    currently_up, info = status(service_name, port=port)
+def down(service_name, reason="", port=None, host=None, expiration=None, creation=None):
+    currently_up, info = status(service_name, port=port, host=host)
 
     # If we already downed the service for the same reason, leave the creation time alone. This allows a user to
     # repeatedly down a service to refresh its expiration time, and we will keep track of how long it has been down
@@ -141,5 +150,5 @@ def down(service_name, reason="", port=None, expiration=None, creation=None):
     if creation is None and (not currently_up) and reason == info['reason']:
         creation = info.get('creation', creation)
 
-    with open(spool_file_path(service_name, port), 'w') as f:
+    with open(spool_file_path(service_name, port, host), 'w') as f:
         f.write(serialize_spool_file_contents(reason, expiration=expiration, creation=creation))

@@ -20,7 +20,7 @@ TIMEOUT = 10
 # Do not cache spool checks
 @tornado.concurrent.return_future
 def check_spool(service_name, port, query, host, io_loop, callback, query_params, headers):
-    up, extra_info = spool.is_up(service_name, port=port)
+    up, extra_info = spool.is_up(service_name, port=port, host=host)
     if not up:
         info_string = 'Service %s in down state' % (extra_info['service'],)
         if extra_info.get('creation') is not None:

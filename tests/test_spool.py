@@ -37,14 +37,19 @@ class TestSpool(TestCase):
         svcname = 'test_basic'
         self.assertEquals(True, spool.status(svcname)[0])
         self.assertEquals(True, spool.status(svcname, 1234)[0])
+        self.assertEquals(True, spool.status(svcname, 1234, '10.93.10.1')[0])
         spool.down(svcname, port=1234)
         self.assertEquals(True, spool.status(svcname)[0])
         self.assertEquals(False, spool.status(svcname, 1234)[0])
+        self.assertEquals(True, spool.status(svcname, 1234, '10.93.10.1')[0])
         spool.down(svcname)
         self.assertEquals(False, spool.status(svcname)[0])
         self.assertEquals(False, spool.is_up(svcname)[0])
+        self.assertEquals(False, spool.is_up(svcname, 1234, '10.93.10.1')[0])
         spool.up(svcname, port=1234)
         self.assertEquals(True, spool.status(svcname, 1234)[0])
+        spool.up(svcname, port=1234, host='10.93.10.1')
+        self.assertEquals(True, spool.status(svcname, 1234, '10.93.10.1')[0])
         spool.up(svcname)
         self.assertEquals(True, spool.status(svcname)[0])
 
@@ -60,7 +65,7 @@ class TestSpool(TestCase):
         spool.down('foo')
         self.assertEqual(
             list(spool.status_all_down()),
-            [('foo', None, {'service': 'foo', 'reason': '', 'expiration': None, 'creation': mock.ANY})]
+            [('foo', None, None, {'service': 'foo', 'reason': '', 'expiration': None, 'creation': mock.ANY})]
         )
 
     def test_repeated_ups_works(self):
@@ -70,9 +75,18 @@ class TestSpool(TestCase):
     def test_spool_file_path(self):
         self.assertEqual(os.path.join(self.root, 'foo:1234'), spool.spool_file_path("foo", port=1234))
         self.assertEqual(os.path.join(self.root, 'foo'), spool.spool_file_path("foo", None))
+        self.assertEqual(os.path.join(self.root, 'foo:1234'), spool.spool_file_path("foo", port=1234, host='127.0.0.1'))
+        self.assertEqual(
+            os.path.join(self.root, 'foo:10.93.10.1:1234'),
+            spool.spool_file_path("foo", port=1234, host='10.93.10.1'),
+        )
 
     def test_parse_spool_file_path(self):
-        self.assertEqual(("foo", 1234), spool.parse_spool_file_path(spool.spool_file_path("foo", 1234)))
+        self.assertEqual(("foo", None, 1234), spool.parse_spool_file_path(spool.spool_file_path("foo", 1234)))
+        self.assertEqual(
+            ("foo", '10.93.10.1', 1234),
+            spool.parse_spool_file_path(spool.spool_file_path("foo", 1234, '10.93.10.1')),
+        )
 
     def test_serialize_spool_file_contents(self):
         actual = spool.serialize_spool_file_contents("hi", expiration=12345, creation=54321)
