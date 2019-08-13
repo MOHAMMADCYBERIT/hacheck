@@ -111,7 +111,10 @@ class BaseServiceHandler(tornado.web.RequestHandler):
         header_port, header_host = self.maybe_get_host_port_from_haproxy_server_state()
         if not header_host:
             header_host = self.maybe_get_host_from_nerve_header()
-        host = header_host if header_host else '127.0.0.1'
+        if header_host and header_host != self.settings['host_ip']:
+            host = header_host
+        else:
+            host = '127.0.0.1'
         port = header_port if header_port else port
 
         seen_services[service_name] = time.time()

@@ -39,7 +39,9 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             shutil.rmtree(self.spool)
 
     def get_app(self):
-        return main.get_app()
+        with mock.patch.object(main.socket, 'gethostbyname', return_value='10.1.1.2'):
+            app = main.get_app()
+        return app
 
     def test_status(self):
         response = self.fetch('/status')
@@ -179,6 +181,18 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             args, _ = checker.call_args
             assert args[1] == 1
             assert args[3] == '10.1.1.1'
+
+    def test_matches_host_ip(self):
+        # If the IP from the header matches the host IP, use localhost so cache/spool keys are consistent.
+        rv = tornado.concurrent.Future()
+        rv.set_result((200, b'OK'))
+        checker = mock.Mock(return_value=rv)
+        with mock.patch.object(handlers.HTTPServiceHandler, 'CHECKERS', [checker]):
+            response = self.fetch('/http/foo/1/status', headers={'X-Nerve-Check-IP': '10.1.1.2'})
+            self.assertEqual(200, response.code)
+            args, _ = checker.call_args
+            assert args[1] == 1
+            assert args[3] == '127.0.0.1'
 
     def test_old_haproxy_server_state_ignored(self):
         rv = tornado.concurrent.Future()
