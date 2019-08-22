@@ -55,18 +55,18 @@ class EchoParamFoo(tornado.web.RequestHandler):
 class TestChecker(TestCase):
     def test_spool_success(self):
         with mock.patch.object(spool, 'is_up', return_value=(True, {})) as is_up_patch:
-            fut = checker.check_spool(se.name, se.port, se.query, None, query_params=None, headers={})
+            fut = checker.check_spool(se.name, se.port, se.query, '127.0.0.1', None, query_params=None, headers={})
             self.assertIsInstance(fut, tornado.concurrent.Future)
             self.assertTrue(fut.done())
             res = fut.result()
             self.assertEqual(res[0], 200)
-            is_up_patch.assert_called_once_with(se.name, port=se.port)
+            is_up_patch.assert_called_once_with(se.name, port=se.port, host='127.0.0.1')
 
     def test_spool_failure(self):
         with mock.patch.object(spool, 'is_up', return_value=(False, {'service': se.service})) as is_up_patch:
-            fut = checker.check_spool(se.name, se.port, se.query, None, query_params=None, headers={})
+            fut = checker.check_spool(se.name, se.port, se.query, '127.0.0.1', None, query_params=None, headers={})
             self.assertEqual(fut.result()[0], 503)
-            is_up_patch.assert_called_once_with(se.name, port=se.port)
+            is_up_patch.assert_called_once_with(se.name, port=se.port, host='127.0.0.1')
 
 
 class BaseTestHTTPHTTPSChecker(object):
@@ -84,47 +84,47 @@ class BaseTestHTTPHTTPSChecker(object):
 
     @tornado.testing.gen_test
     def test_check_success(self):
-        response = yield self.check_http_https("foo", self.get_http_port(), "/", io_loop=self.io_loop, query_params="",
-                                               headers={})
+        response = yield self.check_http_https("foo", self.get_http_port(), "/", '127.0.0.1', io_loop=self.io_loop,
+                                               query_params="", headers={})
         self.assertEqual((200, b'TEST OK'), response)
 
     @tornado.testing.gen_test
     def test_check_failure(self):
-        code, response = yield self.check_http_https("foo", self.get_http_port(), "/bar", io_loop=self.io_loop,
-                                                     query_params="", headers={})
+        code, response = yield self.check_http_https("foo", self.get_http_port(), "/bar", '127.0.0.1',
+                                                     io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(404, code)
 
     @tornado.testing.gen_test
     def test_check_redirect(self):
-        code, response = yield self.check_http_https("foo", self.get_http_port(), "/redirect", io_loop=self.io_loop,
-                                                     query_params="", headers={})
+        code, response = yield self.check_http_https("foo", self.get_http_port(), "/redirect", '127.0.0.1',
+                                                     io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(301, code)
 
     @tornado.testing.gen_test
     def test_check_failure_with_code(self):
-        code, response = yield self.check_http_https("foo", self.get_http_port(), "/bip", io_loop=self.io_loop,
-                                                     query_params="", headers={})
+        code, response = yield self.check_http_https("foo", self.get_http_port(), "/bip", '127.0.0.1',
+                                                     io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(501, code)
 
     @tornado.testing.gen_test
     def test_check_wrong_port(self):
-        code, response = yield self.check_http_https("foo", self.get_http_port() + 1, "/", io_loop=self.io_loop,
-                                                     query_params="", headers={})
+        code, response = yield self.check_http_https("foo", self.get_http_port() + 1, "/", '127.0.0.1',
+                                                     io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(599, code)
 
     @tornado.testing.gen_test
     def test_service_name_header(self):
         with mock.patch.dict(config.config, {'service_name_header': 'SName'}):
-            code, response = yield self.check_http_https('service_name', self.get_http_port(), "/sname",
+            code, response = yield self.check_http_https('service_name', self.get_http_port(), "/sname", '127.0.0.1',
                                                          io_loop=self.io_loop, query_params="", headers={})
             self.assertEqual(b'service_name', response)
 
     @tornado.testing.gen_test
     def test_cache_ignores_service_name(self):
         cache.stats.clear()
-        code_1, response_1 = yield self.check_http_https('service_name.main', self.get_http_port(), "/",
+        code_1, response_1 = yield self.check_http_https('service_name.main', self.get_http_port(), "/", '127.0.0.1',
                                                          io_loop=self.io_loop, query_params="", headers={})
-        code_2, response_2 = yield self.check_http_https('service_name.main_ro', self.get_http_port(), "/",
+        code_2, response_2 = yield self.check_http_https('service_name.main_ro', self.get_http_port(), "/", '127.0.0.1',
                                                          io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(cache.stats['gets'], 2)
         self.assertEqual(cache.stats['hits'], 1)
@@ -134,22 +134,24 @@ class BaseTestHTTPHTTPSChecker(object):
         cache.stats.clear()
         with mock.patch.dict(config.config, {'service_name_header': 'SName'}):
             code_1, response_1 = yield self.check_http_https('service_name.main', self.get_http_port(), "/sname",
-                                                             io_loop=self.io_loop, query_params="", headers={})
+                                                             '127.0.0.1', io_loop=self.io_loop, query_params="",
+                                                             headers={})
             code_2, response_2 = yield self.check_http_https('service_name.main_ro', self.get_http_port(), "/sname",
-                                                             io_loop=self.io_loop, query_params="", headers={})
+                                                             '127.0.0.1', io_loop=self.io_loop, query_params="",
+                                                             headers={})
             self.assertEqual(cache.stats['gets'], 2)
             self.assertEqual(cache.stats['hits'], 0)
 
     @tornado.testing.gen_test
     def test_query_params_passed(self):
-        response = yield self.check_http_https("foo", self.get_http_port(), "/echo_foo", io_loop=self.io_loop,
-                                               query_params="foo=bar", headers={})
+        response = yield self.check_http_https("foo", self.get_http_port(), "/echo_foo", '127.0.0.1',
+                                               io_loop=self.io_loop, query_params="foo=bar", headers={})
         self.assertEqual((200, b'bar'), response)
 
     @tornado.testing.gen_test
     def test_query_params_not_passed(self):
-        response = yield self.check_http_https("foo", self.get_http_port(), "/echo_foo", io_loop=self.io_loop,
-                                               query_params="", headers={})
+        response = yield self.check_http_https("foo", self.get_http_port(), "/echo_foo", '127.0.0.1',
+                                               io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(400, response[0])
 
 
@@ -192,14 +194,15 @@ class TestTCPChecker(tornado.testing.AsyncTestCase):
 
     @tornado.testing.gen_test
     def test_check_success(self):
-        response = yield checker.check_tcp("foo", self.port, None, io_loop=self.io_loop, query_params="", headers={})
+        response = yield checker.check_tcp("foo", self.port, None, '127.0.0.1',
+                                           io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(200, response[0])
 
     @tornado.testing.gen_test
     def test_check_failure(self):
         with mock.patch.object(checker, 'TIMEOUT', 1):
-            response = yield checker.check_tcp("foo", self.unlistened_port, None, io_loop=self.io_loop, query_params="",
-                                               headers={})
+            response = yield checker.check_tcp("foo", self.unlistened_port, None, '127.0.0.1',
+                                               io_loop=self.io_loop, query_params="", headers={})
             self.assertEqual(response[0], 503)
 
 
@@ -238,12 +241,13 @@ class TestSMTPChecker(tornado.testing.AsyncTestCase):
 
     @tornado.testing.gen_test
     def test_check_success(self):
-        response = yield checker.check_smtp("foo", self.port, None, io_loop=self.io_loop, query_params="", headers={})
+        response = yield checker.check_smtp("foo", self.port, None, '127.0.0.1',
+                                            io_loop=self.io_loop, query_params="", headers={})
         self.assertEqual(200, response[0])
 
     @tornado.testing.gen_test
     def test_check_failure(self):
         with mock.patch.object(self.server, 'never_respond', True):
-            response = yield checker.check_smtp("foo", self.port, None, io_loop=self.io_loop, query_params="",
-                                                headers={})
+            response = yield checker.check_smtp("foo", self.port, None, '127.0.0.1',
+                                                io_loop=self.io_loop, query_params="", headers={})
             self.assertEqual((503, 'Peer unexpectedly closed connection'), response)

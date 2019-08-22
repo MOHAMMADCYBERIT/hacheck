@@ -28,9 +28,13 @@ This version has several features not present in the upstream version:
   This is useful if there is some software, like [Paasta](github.com/Yelp/paasta), making decisions centrally about when
   to kill tasks.
 * If the client sends the header `X-Haproxy-Server-State`, then we use the port specified in that header and ignore the
-  port in the URL.
+  port in the URL. We also use the host address specified in this header instead of localhost.
   This is useful for configurations where an HAProxy has a backend with many servers running on different ports, such
-  as when your tasks are running under [Marathon](github.com/mesosphere/marathon).
+  as when your tasks are running under [Marathon](github.com/mesosphere/marathon). Or if the backends have different
+  IPs such as Pods running on Kubernetes.
+* If the client sends `X-Nerve-Check-IP`, then we use the IP specified here to check against (rather than the default
+  of localhost). This is again useful for Kubernetes Pods where we want to healthcheck with [Nerve](github.com/airbnb/nerve)
+  from the hosts network namespace but each Pod runs with its own IP.
 * Spool files(downtimes) can optionally have expirations, and store information about when they were created.
 * Spool files(downtimes) can apply to a service on a specific port - useful if you have multiple copies of a service on
   the same box.

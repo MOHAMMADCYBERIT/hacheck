@@ -39,7 +39,9 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             shutil.rmtree(self.spool)
 
     def get_app(self):
-        return main.get_app()
+        with mock.patch.object(main.socket, 'gethostbyname', return_value='10.1.1.2'):
+            app = main.get_app()
+        return app
 
     def test_status(self):
         response = self.fetch('/status')
@@ -88,7 +90,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
         ):
             response = self.fetch('/spool/foo/1/status')
             self.assertEqual(response.code, 503)
-            self.assertRegexpMatches(response.body, b'^Service any in down state since 4\.0+ until 5\.0+: reason$')
+            self.assertRegexpMatches(response.body, b'^Service any in down state since 4\\.0+ until 5\\.0+: reason$')
 
     def test_calls_all_checkers(self):
         rv1 = tornado.concurrent.Future()
@@ -101,8 +103,12 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             response = self.fetch('/spool/foo/1/status')
             self.assertEqual(200, response.code)
             self.assertEqual(b'OK2', response.body)
-            checker1.assert_called_once_with('foo', 1, 'status', io_loop=mock.ANY, query_params='', headers=mock.ANY)
-            checker2.assert_called_once_with('foo', 1, 'status', io_loop=mock.ANY, query_params='', headers=mock.ANY)
+            checker1.assert_called_once_with(
+                'foo', 1, 'status', '127.0.0.1', io_loop=mock.ANY, query_params='', headers=mock.ANY
+            )
+            checker2.assert_called_once_with(
+                'foo', 1, 'status', '127.0.0.1', io_loop=mock.ANY, query_params='', headers=mock.ANY
+            )
 
     def test_passes_headers(self):
         rv1 = tornado.concurrent.Future()
@@ -112,7 +118,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             response = self.fetch('/spool/foo/1/status')
             self.assertEqual(200, response.code)
             checker1.assert_called_with(
-                'foo', 1, 'status', io_loop=mock.ANY, query_params='',
+                'foo', 1, 'status', '127.0.0.1', io_loop=mock.ANY, query_params='',
                 headers={
                     'Connection': 'close',
                     'Host': mock.ANY,
@@ -157,12 +163,36 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
         rv = tornado.concurrent.Future()
         rv.set_result((200, b'OK'))
         checker = mock.Mock(return_value=rv)
-        server_state = 'UP 2/3; addr=srv1; port=1234; name=bck/srv2; node=lb1; weight=1/2; scur=13/22; qcur=0'
+        server_state = 'UP 2/3; address=srv1; port=1234; name=bck/srv2; node=lb1; weight=1/2; scur=13/22; qcur=0'
         with mock.patch.object(handlers.HTTPServiceHandler, 'CHECKERS', [checker]):
             response = self.fetch('/http/foo/1/status', headers={'X-Haproxy-Server-State': server_state})
             self.assertEqual(200, response.code)
             args, _ = checker.call_args
             assert args[1] == 1234
+            assert args[3] == 'srv1'
+
+    def test_nerve_header(self):
+        rv = tornado.concurrent.Future()
+        rv.set_result((200, b'OK'))
+        checker = mock.Mock(return_value=rv)
+        with mock.patch.object(handlers.HTTPServiceHandler, 'CHECKERS', [checker]):
+            response = self.fetch('/http/foo/1/status', headers={'X-Nerve-Check-IP': '10.1.1.1'})
+            self.assertEqual(200, response.code)
+            args, _ = checker.call_args
+            assert args[1] == 1
+            assert args[3] == '10.1.1.1'
+
+    def test_matches_host_ip(self):
+        # If the IP from the header matches the host IP, use localhost so cache/spool keys are consistent.
+        rv = tornado.concurrent.Future()
+        rv.set_result((200, b'OK'))
+        checker = mock.Mock(return_value=rv)
+        with mock.patch.object(handlers.HTTPServiceHandler, 'CHECKERS', [checker]):
+            response = self.fetch('/http/foo/1/status', headers={'X-Nerve-Check-IP': '10.1.1.2'})
+            self.assertEqual(200, response.code)
+            args, _ = checker.call_args
+            assert args[1] == 1
+            assert args[3] == '127.0.0.1'
 
     def test_old_haproxy_server_state_ignored(self):
         rv = tornado.concurrent.Future()
@@ -174,6 +204,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             self.assertEqual(200, response.code)
             args, _ = checker.call_args
             assert args[1] == 1
+            assert args[3] == '127.0.0.1'
 
     def test_option_parsing(self):
         with nested(

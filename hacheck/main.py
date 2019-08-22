@@ -3,6 +3,7 @@ import optparse
 import signal
 import time
 import types
+import socket
 import sys
 import resource
 
@@ -37,6 +38,7 @@ def log_request(handler):
 
 
 def get_app():
+    host_ip = socket.gethostbyname(socket.gethostname())
     return tornado.web.Application([
         (r'/http/([.a-zA-Z0-9_-]+)/([0-9]+)/(.*)', handlers.HTTPServiceHandler),
         (r'/https/([.a-zA-Z0-9_-]+)/([0-9]+)/(.*)', handlers.HTTPSServiceHandler),
@@ -47,7 +49,7 @@ def get_app():
         (r'/recent', handlers.ListRecentHandler),
         (r'/status/count', handlers.ServiceCountHandler),
         (r'/status', handlers.StatusHandler),
-    ], start_time=time.time(), log_function=log_request)
+    ], start_time=time.time(), log_function=log_request, host_ip=host_ip)
 
 
 def remove_timeout(self, timeout):

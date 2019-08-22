@@ -40,7 +40,7 @@ def print_s(fmt_string, *formats):
     print(fmt_string % formats)
 
 
-def print_status(service_name, port, is_up, info_dict):
+def print_status(service_name, host, port, is_up, info_dict):
     """Print a status line for a given service"""
     if is_up:
         print_s('UP\t%s', service_name)
@@ -49,7 +49,8 @@ def print_status(service_name, port, is_up, info_dict):
         if expiration is None:
             expiration = float('Inf')
         if port is not None:
-            print_s('DOWN\t%f\t%s:%d\t%s', expiration, service_name, port, info_dict.get('reason', ''))
+            host = '' if host is None else host
+            print_s('DOWN\t%f\t%s:%s:%d\t%s', expiration, service_name, host, port, info_dict.get('reason', ''))
         else:
             print_s('DOWN\t%f\t%s\t%s', expiration, service_name, info_dict.get('reason', ''))
 
@@ -92,10 +93,17 @@ def main(default_action='list'):
         help='Port to check/set status for',
     )
     parser.add_option(
+        '-H',
+        '--service-host',
+        type=str,
+        default=None,
+        help='Service host to check/set status for',
+    )
+    parser.add_option(
         '-p',
         '--port',
         type=str,
-        default=3333,
+        default='3333',
         help='Port that the hacheck daemon is running on (default %(default)'
     )
     opts, args = parser.parse_args()
@@ -124,13 +132,15 @@ def main(default_action='list'):
         if not args:
             parser.error('Expected args for action %s' % (opts.action))
         service_names = args
+        if opts.service_host and not opts.service_port:
+            parser.error('Service port required if service host specified for action %s' % (opts.action))
     else:
         if args:
             parser.error('Unexpected args for action %s: %r' % (opts.action, args))
 
     if opts.action == 'list':
         with contextlib.closing(urlopen(
-            'http://127.0.0.1:%d/recent' % opts.port,
+            'http://127.0.0.1:%s/recent' % opts.port,
             timeout=3
         )) as f:
             resp = json.load(f)
@@ -144,24 +154,30 @@ def main(default_action='list'):
     elif opts.action == 'up':
         hacheck.spool.configure(opts.spool_root, needs_write=True)
         for service_name in service_names:
-            hacheck.spool.up(service_name, port=opts.service_port)
+            hacheck.spool.up(service_name, port=opts.service_port, host=opts.service_host)
         return 0
     elif opts.action == 'down':
         hacheck.spool.configure(opts.spool_root, needs_write=True)
         for service_name in service_names:
-            hacheck.spool.down(service_name, opts.reason, expiration=opts.expiration, port=opts.service_port)
+            hacheck.spool.down(
+                service_name,
+                opts.reason,
+                expiration=opts.expiration,
+                port=opts.service_port,
+                host=opts.service_host,
+            )
         return 0
     elif opts.action == 'status_downed':
         hacheck.spool.configure(opts.spool_root, needs_write=False)
-        for service_name, port, info in hacheck.spool.status_all_down():
-            print_status(service_name, port, False, info)
+        for service_name, host, port, info in hacheck.spool.status_all_down():
+            print_status(service_name, host, port, False, info)
         return 0
     else:
         hacheck.spool.configure(opts.spool_root, needs_write=False)
         rv = 0
         for service_name in service_names:
-            status, info = hacheck.spool.status(service_name, port=opts.service_port)
-            print_status(service_name, opts.service_port, status, info)
+            status, info = hacheck.spool.status(service_name, host=opts.service_host, port=opts.service_port)
+            print_status(service_name, opts.service_host, opts.service_port, status, info)
             if not status:
                 rv = 1
         return rv
