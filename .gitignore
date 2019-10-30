@@ -11,3 +11,4 @@ env32/
 env33/
 .tox/
 bintray.json
+debian/
