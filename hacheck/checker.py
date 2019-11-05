@@ -14,8 +14,6 @@ from . import mysql
 from . import spool
 from . import __version__
 
-TIMEOUT = 10
-
 
 # Do not cache spool checks
 @tornado.concurrent.return_future
@@ -67,11 +65,14 @@ def check_http_https(service_name, port, check_path, host, io_loop, query_params
         path,
         method='GET',
         headers=headers_out,
-        request_timeout=TIMEOUT,
+        request_timeout=config.config['healthcheck_timeout'],
         follow_redirects=False,
         validate_cert=False,
     )
-    http_client = tornado.httpclient.AsyncHTTPClient(io_loop=io_loop)
+    http_client = tornado.httpclient.AsyncHTTPClient(
+        io_loop=io_loop,
+        max_clients=config.config['max_clients'],
+    )
     try:
         response = yield http_client.fetch(request)
         code = response.code
@@ -98,7 +99,7 @@ def check_tcp(service_name, port, query, host, io_loop, query_params, headers):
     try:
         stream = tornado.iostream.IOStream(s, io_loop=io_loop)
         yield tornado.gen.with_timeout(
-            datetime.timedelta(seconds=TIMEOUT),
+            datetime.timedelta(seconds=config.config['healthcheck_timeout']),
             tornado.gen.Task(stream.connect, (host, port))
         )
 
@@ -134,7 +135,12 @@ def check_mysql(service_name, port, query, host, io_loop, query_params, headers)
     def timed_out(duration):
         raise tornado.gen.Return((503, 'MySQL timed out after %.2fs' % (duration)))
 
-    conn = mysql.MySQLClient(host=host, port=port, global_timeout=TIMEOUT, io_loop=io_loop)
+    conn = mysql.MySQLClient(
+        host=host,
+        port=port,
+        global_timeout=config.config['healthcheck_timeout'],
+        io_loop=io_loop,
+    )
     response = yield conn.connect(username, password)
     if not response.OK:
         raise tornado.gen.Return((500, 'MySQL sez %s' % response))
@@ -151,7 +157,7 @@ def check_smtp(service_name, port, query, host, io_loop, query_params, headers):
     try:
         stream = tornado.iostream.IOStream(s, io_loop=io_loop)
         yield tornado.gen.with_timeout(
-            datetime.timedelta(seconds=TIMEOUT),
+            datetime.timedelta(seconds=config.config['healthcheck_timeout']),
             tornado.gen.Task(
                 stream.connect, (host, port))
         )

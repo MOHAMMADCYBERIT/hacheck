@@ -10,6 +10,8 @@ def max_or_int(some_str_value):
 
 DEFAULTS = {
     'cache_time': (float, 10.0),
+    'healthcheck_timeout': (float, 10.0),
+    'max_clients': (int, 10),
     'service_name_header': (str, None),
     'log_path': (str, 'stderr'),
     'mysql_username': (str, None),
