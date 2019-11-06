@@ -108,6 +108,7 @@ class BaseServiceHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, service_name, port, query):
+        self.timed_out = False
         header_port, header_host = self.maybe_get_host_port_from_haproxy_server_state()
         if not header_host:
             header_host = self.maybe_get_host_from_nerve_header()
@@ -124,7 +125,7 @@ class BaseServiceHandler(tornado.web.RequestHandler):
             last_message = ""
             querystr = self.request.query
             for this_checker in self.CHECKERS:
-                code, message = yield this_checker(
+                self.future = this_checker(
                     service_name,
                     port,
                     query,
@@ -133,8 +134,9 @@ class BaseServiceHandler(tornado.web.RequestHandler):
                     query_params=querystr,
                     headers=self.request.headers,
                 )
+                code, message = yield self.future
                 last_message = message
-                if code > 200:
+                if code > 200 and not self.timed_out:
                     last_statuses[service_name] = StatusResponse(code, self.request.remote_ip, time.time())
                     if code in tornado.httputil.responses:
                         self.set_status(code)
@@ -144,10 +146,18 @@ class BaseServiceHandler(tornado.web.RequestHandler):
                     self.finish()
                     break
             else:
-                last_statuses[service_name] = StatusResponse(200, self.request.remote_ip, time.time())
-                self.set_status(200)
-                self.write(last_message)
-                self.finish()
+                if not self.timed_out:
+                    last_statuses[service_name] = StatusResponse(200, self.request.remote_ip, time.time())
+                    self.set_status(200)
+                    self.write(last_message)
+                    self.finish()
+
+    def on_connection_close(self):
+        self.timed_out = True
+        self.set_status(504)
+        self.write('Upstream client closed the connection')
+        self.future.cancel()
+        self.finish()
 
 
 class SpoolServiceHandler(BaseServiceHandler):
