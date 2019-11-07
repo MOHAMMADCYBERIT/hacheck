@@ -165,6 +165,49 @@ class TestHTTPSChecker(BaseTestHTTPHTTPSChecker, tornado.testing.AsyncHTTPSTestC
         return checker.check_https(*args, **kwargs)
 
 
+class TestMaxClientsAndHealthcheckTimeout(tornado.testing.AsyncHTTPTestCase):
+
+    def get_app(self):
+        return tornado.web.Application([])
+
+    @tornado.testing.gen_test
+    def test_max_clients_and_healthcheck_timeout(self):
+        with mock.patch.dict(
+            config.config,
+            {'healthcheck_timeout': 1, 'max_clients': 3}
+        ), mock.patch(
+            'hacheck.checker.tornado.httpclient.AsyncHTTPClient',
+        ) as mock_async_http_client, mock.patch(
+            'hacheck.checker.tornado.httpclient.HTTPRequest',
+        ) as mock_http_request:
+            mock_io_loop = mock.Mock()
+            yield checker.check_http(
+                service_name='service_name',
+                port=1234,
+                query='status/',
+                host='127.0.0.1',
+                io_loop=mock_io_loop,
+                query_params={},
+                headers=[],
+            )
+
+            mock_http_request.assert_called_once_with(
+                'http://127.0.0.1:1234/status/',
+                method=mock.ANY,
+                headers=mock.ANY,
+                request_timeout=1,
+                follow_redirects=mock.ANY,
+                validate_cert=mock.ANY,
+            )
+            mock_async_http_client.assert_called_once_with(
+                io_loop=mock_io_loop,
+                max_clients=3,
+            )
+            mock_async_http_client.return_value.fetch.assert_called_once_with(
+                mock_http_request.return_value,
+            )
+
+
 class TestServer(tornado.tcpserver.TCPServer):
     @tornado.gen.coroutine
     def handle_stream(self, stream, address):
@@ -200,7 +243,7 @@ class TestTCPChecker(tornado.testing.AsyncTestCase):
 
     @tornado.testing.gen_test
     def test_check_failure(self):
-        with mock.patch.object(checker, 'TIMEOUT', 1):
+        with mock.patch.object(checker.config, 'config', {'healthcheck_timeout': 1}):
             response = yield checker.check_tcp("foo", self.unlistened_port, None, '127.0.0.1',
                                                io_loop=self.io_loop, query_params="", headers={})
             self.assertEqual(response[0], 503)
