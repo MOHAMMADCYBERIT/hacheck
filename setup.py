@@ -13,7 +13,7 @@ setup(
     keywords=["monitoring", "load-balancing", "networking"],
     description="HAProxy health-check proxying service",
     install_requires=[
-        'tornado>=4.1,<=4.3',
+        'tornado>=4.1,<=4.5.3',
         'PyYAML>=3.0',
         'six>=1.4.0',
     ],
