@@ -1,3 +1,9 @@
+hacheck (0.15.0-yelp1) xenial; urgency=low
+
+  * Support HTTP 204 responses from proxied services
+
+ -- Stuart Elston <selston@yelp.com>  Tue, 12 Nov 2019 15:48:34 -0800
+
 hacheck (0.14.0-yelp1) xenial; urgency=low
 
   * Bump tornado to 4.5.3
