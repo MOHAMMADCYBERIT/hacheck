@@ -140,7 +140,12 @@ class BaseServiceHandler(tornado.web.RequestHandler):
                         self.set_status(code)
                     else:
                         self.set_status(503)
-                    self.write(message)
+
+                    # tornado will complain if we try to write anything (even
+                    # an empty string) with an HTTP 204 (No Content)
+                    if len(message) > 0:
+                        self.write(message)
+
                     self.finish()
                     break
             else:
