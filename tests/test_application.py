@@ -159,6 +159,14 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
             response = self.fetch('/http/uncached-weird-code/80/status')
             self.assertEqual(503, response.code)
 
+    def test_no_content(self):
+        rv = tornado.concurrent.Future()
+        rv.set_result((204, ''))
+        checker = mock.Mock(return_value=rv)
+        with mock.patch.object(handlers.HTTPServiceHandler, 'CHECKERS', [checker]):
+            response = self.fetch('/http/no-content/80/status')
+            self.assertEqual(204, response.code)
+
     def test_haproxy_server_state(self):
         rv = tornado.concurrent.Future()
         rv.set_result((200, b'OK'))
