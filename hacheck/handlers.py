@@ -39,6 +39,13 @@ class StatusHandler(tornado.web.RequestHandler):
         stats = {}
         stats['cache'] = cache.get_stats()
         stats['uptime'] = time.time() - self.settings['start_time']
+
+        http_client = tornado.httpclient.AsyncHTTPClient(
+            io_loop=tornado.ioloop.IOLoop.current(),
+            max_clients=config.config['max_clients'],
+        )
+        stats['outbound_request_queue_size'] = len(http_client.queue)
+
         self.set_status(200)
         self.write(stats)
 
