@@ -48,6 +48,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
         self.assertEqual('application/json; charset=UTF-8', response.headers['Content-Type'])
         result = json.loads(response.body.decode('utf-8'))
         self.assertGreater(result['uptime'], 0.0)
+        self.assertEqual(result['outbound_request_queue_size'], 0)
 
     def test_status_count(self):
         response = self.fetch('/status/count')
