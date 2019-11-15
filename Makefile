@@ -10,14 +10,6 @@ setup:
 	echo "Go"
 	# mkdir src && cp -R hacheck src && cp -R debian src
 
-package_lucid: setup
-	[ -d dist ] || mkdir dist
-	tox -e package_lucid
-
-itest_lucid: CODENAME=lucid
-itest_lucid: package_lucid dockerfiles/itest/itest_lucid/Dockerfile
-	tox -e itest_lucid
-
 package_trusty: setup
 	[ -d dist ] || mkdir dist
 	tox -e package_trusty
