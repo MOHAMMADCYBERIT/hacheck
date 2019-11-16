@@ -1,7 +1,12 @@
 FROM ubuntu:16.04
 MAINTAINER John Billings <billings@yelp.com>
 
-RUN apt-get update && apt-get -y install python-dev
+# add deadsnakes/ppa repo to get python3.6
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa
+
+RUN apt-get update && apt-get -y install python3.6-dev
 
 ADD itest.sh /itest.sh
 

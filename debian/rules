@@ -18,4 +18,4 @@ override_dh_auto_test:
 	true
 
 override_dh_virtualenv:
-	dh_virtualenv --extra-index-url 'https://pypi.yelpcorp.com/simple' --python=/usr/bin/python2.7 --no-test
+	dh_virtualenv --extra-index-url 'https://pypi.yelpcorp.com/simple' --python=/usr/bin/python3.6 --no-test
