@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-dpkg -i /work/dist/hacheck_*_amd64.deb
+dpkg -i /work/dist/xenial/hacheck_*_amd64.deb
 
 /usr/bin/hacheck --help
 /usr/bin/hadown --help
