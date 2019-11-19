@@ -1,3 +1,10 @@
+hacheck (0.16.0-yelp1) xenial; urgency=low
+
+  * Remove lucid build targets
+  * Upgrade to python 3.6
+
+ -- Stuart Elston <selston@yelp.com>  Mon, 18 Nov 2019 17:34:41 -0800
+
 hacheck (0.15.0-yelp1) xenial; urgency=low
 
   * Support HTTP 204 responses from proxied services
