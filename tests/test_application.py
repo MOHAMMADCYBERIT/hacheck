@@ -218,7 +218,7 @@ class ApplicationTestCase(tornado.testing.AsyncHTTPTestCase):
     def test_option_parsing(self):
         with nested(
             mock.patch('sys.argv', ['ignorethis', '-c', self.config_file.name, '--spool-root', 'foo']),
-            mock.patch.object(tornado.ioloop.IOLoop, 'instance'),
+            mock.patch('hacheck.main.IOLoop'),
             mock.patch.object(cache, 'configure'),
             mock.patch.object(main, 'get_app'),
             mock.patch.object(spool, 'configure')) \

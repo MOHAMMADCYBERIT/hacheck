@@ -7,9 +7,9 @@ import socket
 import sys
 import resource
 
-import tornado.ioloop
 import tornado.httpserver
 import tornado.web
+from tornado.ioloop import IOLoop
 from tornado.log import access_log
 
 from . import cache
@@ -86,6 +86,13 @@ def main():
         help='Port to listen on. May be repeated. If not passed, defaults to :3333.'
     )
     parser.add_option(
+        '-n',
+        '--num-procs',
+        default=1,
+        type=int,
+        help='Number of identical copies to run',
+    )
+    parser.add_option(
         '-B',
         '--bind-address',
         default='0.0.0.0',
@@ -129,25 +136,25 @@ def main():
     cache.configure(cache_time=config.config['cache_time'])
     spool.configure(spool_root=opts.spool_root)
     application = get_app()
-    ioloop = tornado.ioloop.IOLoop.instance()
-    ioloop.remove_timeout = types.MethodType(remove_timeout, ioloop)
-    server = tornado.httpserver.HTTPServer(application, io_loop=ioloop)
+    server = tornado.httpserver.HTTPServer(application)
 
     if initialize_mutornadomon is not None:
-        mutornadomon_collector = initialize_mutornadomon(application, io_loop=ioloop)
+        mutornadomon_collector = initialize_mutornadomon(application)
     else:
         mutornadomon_collector = None
 
     def stop(*args):
         if mutornadomon_collector is not None:
             mutornadomon_collector.stop()
-        ioloop.stop()
+        IOLoop.current().stop()
 
     for port in opts.port:
-        server.listen(port, opts.bind_address)
+        server.bind(port, opts.bind_address, reuse_port=True)
     for sig in (signal.SIGTERM, signal.SIGQUIT, signal.SIGINT):
         signal.signal(sig, stop)
-    ioloop.start()
+    server.start(opts.num_procs)
+    IOLoop.current().remove_timeout = types.MethodType(remove_timeout, IOLoop.current())
+    IOLoop.current().start()
     return 0
 
 
