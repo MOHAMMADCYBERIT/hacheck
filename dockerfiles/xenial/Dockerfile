@@ -1,9 +1,7 @@
-FROM ubuntu:xenial
+FROM docker-dev.yelpcorp.com/xenial_yelp
 
-# add deadsnakes/ppa repo to get python3.6
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa
+    apt-get install -y --no-install-recommends software-properties-common
 
 RUN apt-get update && \
     apt-get -y install \
