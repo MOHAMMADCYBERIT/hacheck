@@ -1,3 +1,10 @@
+hacheck (0.17.0-yelp2) xenial; urgency=medium
+
+  * Remove trusty
+  * Fix tests
+
+ -- Amjad Mashaal <amashaal@yelp.com>  Wed, 19 Jan 2022 09:07:37 -0800
+
 hacheck (0.17.0-yelp1) xenial; urgency=low
 
   * Run hacheck as multiple processes
