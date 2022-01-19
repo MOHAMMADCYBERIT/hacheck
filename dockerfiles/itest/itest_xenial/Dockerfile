@@ -1,10 +1,8 @@
-FROM ubuntu:16.04
+FROM docker-dev.yelpcorp.com/xenial_yelp
 MAINTAINER John Billings <billings@yelp.com>
 
-# add deadsnakes/ppa repo to get python3.6
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa
+    apt-get install -y --no-install-recommends software-properties-common
 
 RUN apt-get update && apt-get -y install python3.6-dev
 

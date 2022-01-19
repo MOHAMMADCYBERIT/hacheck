@@ -1,5 +1,4 @@
-
-all: itest_trusty
+all: itest_xenial
 
 DATE := $(shell date +'%Y-%m-%d')
 HACHECKVERSION := $(shell sed 's/.*(\(.*\)).*/\1/;q' debian/changelog)
@@ -9,14 +8,6 @@ bintray.json: bintray.json.in
 setup:
 	echo "Go"
 	# mkdir src && cp -R hacheck src && cp -R debian src
-
-package_trusty: setup
-	[ -d dist/trusty ] || mkdir -p dist/trusty
-	tox -e package_trusty
-
-itest_trusty: CODENAME=trusty
-itest_trusty: package_trusty bintray.json
-	tox -e itest_trusty
 
 package_xenial: setup
 	[ -d dist/xenial ] || mkdir -p dist/xenial
